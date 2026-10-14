@@ -2,8 +2,8 @@
 // sin conexion despues de la primera visita. No depende de ningun
 // recurso externo (a diferencia de Supervisor, este portal no usa CDN).
 
-const CACHE_VERSION = 'portal-tecnicos-v2';
-const NUCLEO = ['./index.html', './manifest.json', './logo-cobra.png', './icon-192.png', './icon-512.png', './fondo-tecnicos.jpg'];
+const CACHE_VERSION = 'portal-tecnicos-v3';
+const NUCLEO = ['./index.html', './manifest.json', './logo-cobra.png', './icon-192.png', './icon-512.png', './fondo-tecnicos.jpg', './logo-tigo.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

@@ -459,7 +459,7 @@ const SALIDA = MODO === 'prueba' ? path.join(carpeta, 'prueba') : carpeta;
 const PRIVADO = path.join(SALIDA, 'privado');
 const HISTORIAL = path.join(carpeta, 'privado', 'meses');
 const DIR_SUPERVISOR = 'C:\\Bases_Tigo\\portal-supervisor';
-const ASSETS = ['logo-cobra.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'manifest.json', 'sw.js', 'fondo-tecnicos.jpg'];
+const ASSETS = ['logo-cobra.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'manifest.json', 'sw.js', 'fondo-tecnicos.jpg', 'logo-tigo.png'];
 
 // ID del tecnico: ultimos 6 caracteres del RUT, con K -> 0 (igual que VTR).
 function idDesdeRut(r) {

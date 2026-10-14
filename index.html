@@ -404,6 +404,9 @@ tr.detalle td{ background:var(--panel-2); }
   .btn-instalar:hover{ background:#ffb61a; }
   .btn-instalar svg{ width:15px; height:15px; }
   #logoutBtn{ padding:9px 14px; font-size:12px; }
+  /* Logo del cliente (igual que en el Portal Supervisor): solo el logotipo, a la derecha */
+  header.top .brand-row img#logoTigo{ height:34px; width:auto; padding-right:14px; border-right:1px solid var(--border); }
+  @media (max-width:640px){ header.top .brand-row img#logoTigo{ height:24px; padding-right:10px; } }
   @media (max-width:560px){ header.top .brand-name{ display:none; } header.top .brand-divider{ display:none; } .btn-instalar span{ display:none; } }
   /* Foto de la portada: tecnico en el poste (tec.png de "Foto Respaldo", pedido del usuario 14-10-2026) */
   section.hero .photo{ background-image:url("fondo-tecnicos.jpg"); background-position:50% 18%; }
@@ -497,6 +500,7 @@ tr.detalle td{ background:var(--panel-2); }
     <div class="brand-divider"></div>
     <div class="brand-name">Portal <strong>Técnico</strong></div>
     <div class="acciones-top">
+      <img src="logo-tigo.png" alt="Tigo" id="logoTigo">
       <button class="btn-instalar oculto" id="btnInstalar" type="button" title="Instalar en el celular"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M12 7v7"/><path d="M9 11l3 3 3-3"/></svg><span>Instalar app</span></button>
       <button id="logoutBtn" class="oculto" type="button">Salir</button>
     </div>
@@ -594,7 +598,7 @@ tr.detalle td{ background:var(--panel-2); }
 </div></footer>
 
 <script>
-const DATA = {"generadoEl":"14-10-2026, 7:10:30 p. m.","periodoSlug":"2026-10","periodoLabel":"Octubre 2026","archivos":[{"slug":"2026-10","label":"Octubre 2026"},{"slug":"2026-09","label":"Septiembre 2026"},{"slug":"2026-08","label":"Agosto 2026"}],"metaReincidencias":4,"metaInfancia":2.5,"promedioEquipoReincidencias":5.3,"promedioEquipoInfancia":2.1,"metaNps":86,"periodoNps":"Octubre 2026","metaProductividad":5,"periodoProductividad":"Octubre 2026","labelMesAnterior":"Septiembre 2026","totalTecnicos":21,"tecnicos":{}};
+const DATA = {"generadoEl":"14-10-2026, 7:36:18 p. m.","periodoSlug":"2026-10","periodoLabel":"Octubre 2026","archivos":[{"slug":"2026-10","label":"Octubre 2026"},{"slug":"2026-09","label":"Septiembre 2026"},{"slug":"2026-08","label":"Agosto 2026"}],"metaReincidencias":4,"metaInfancia":2.5,"promedioEquipoReincidencias":5.3,"promedioEquipoInfancia":2.1,"metaNps":86,"periodoNps":"Octubre 2026","metaProductividad":5,"periodoProductividad":"Octubre 2026","labelMesAnterior":"Septiembre 2026","totalTecnicos":21,"tecnicos":{}};
 
 function titleCase(s) { return (s || '').split(' ').map(w => w ? w[0] + w.slice(1).toLowerCase() : w).join(' '); }
 function numero(v, dec) {
