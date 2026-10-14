@@ -1,0 +1,7 @@
+node_modules/
+*.xlsx
+
+# Desde el 14-10-2026 (portal igual a VTR): datos completos e historial por tecnico,
+# solo en este equipo. La pagina publica no trae datos.
+privado/
+prueba/

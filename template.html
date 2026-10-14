@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal Técnicos · Cobra</title>
+<meta name="theme-color" content="#003575">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Portal Técnicos">
+<!-- Portal del tecnico Tigo, igual al de VTR (C:\Bases_Vtr\portal-tecnicos\template.html,
+     pedido del usuario 14-10-2026) con los indicadores de Tigo: Repetido Reparado,
+     Averias de Infancia, Productividad y NPS. La pagina publicada NO trae los datos:
+     cada tecnico los pide a Supabase con su ID (rpc datos_tecnico). -->
+<style>
+  :root{
+    --bg:#eef1f4; --panel:#ffffff; --panel-2:#f5f7f9; --border:#e0e5ea; --text:#22303f; --text-dim:#6b7a8c;
+    --cobra-navy:#003c71; --cobra-blue:#0071ce; --celeste:#29a9e0; --celeste-soft:#e8f6fd;
+    --ok:#1fa971; --ok-bg:#e2f6ee; --warn:#e2962e; --warn-bg:#fdf1e2; --bad:#e2523e; --bad-bg:#fce4e0;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; font-family:'Segoe UI', Arial, sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
+  .brand-row{ display:flex; align-items:center; gap:18px; margin-bottom:22px; }
+  .brand-row img{ height:46px; }
+  .brand-divider{ width:1px; height:34px; background:var(--border); }
+  .eyebrow{ text-transform:uppercase; letter-spacing:.14em; font-size:12.5px; color:var(--celeste); font-weight:800; }
+  h1{ margin:0 0 6px; font-size:clamp(24px,4vw,34px); font-weight:800; letter-spacing:-0.01em; color:var(--cobra-navy); }
+  .subtitle{ color:#3a4a5c; font-size:14.5px; max-width:640px; line-height:1.55; }
+  .banner-fiestas{ margin-top:16px; display:none; }
+  .banner-fiestas-pill{ background:#fff; color:var(--cobra-navy); font-weight:800; font-size:13px; padding:8px 18px; border-radius:999px; box-shadow:0 2px 10px rgba(0,0,0,.08); display:inline-flex; align-items:center; gap:9px; }
+  .banner-fiestas-pill .dim{ font-weight:600; color:var(--text-dim); font-size:12px; }
+  .mini-flag-cl{ width:20px; height:auto; display:inline-block; border-radius:2px; flex:none; box-shadow:inset 0 0 0 1px rgba(0,0,0,.1); }
+  main{ padding:36px 6vw 80px; max-width:760px; margin:0 auto; }
+  .panel{ background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:22px 24px; box-shadow:0 4px 14px rgba(20,50,80,.05); }
+
+  #loginBox{ max-width:400px; margin:40px auto 0; text-align:center; }
+  #loginBox .icono-login{ font-size:38px; margin-bottom:6px; }
+  #loginBox h2{ margin:0 0 8px; font-size:20px; color:var(--cobra-navy); }
+  #loginBox p.desc{ margin:0 0 22px; font-size:13.5px; color:var(--text-dim); line-height:1.6; }
+  .campo{ margin-bottom:14px; text-align:left; }
+  .campo label{ display:block; font-size:12px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px; }
+  .campo input{ width:100%; padding:12px 13px; border:1px solid var(--border); border-radius:8px; font-size:16px; font-family:inherit; }
+  .campo input:focus{ outline:2px solid var(--celeste); border-color:var(--celeste); }
+  .campo .ayuda{ font-size:11.5px; color:var(--text-dim); margin-top:4px; text-align:left; }
+  #loginBtn{ width:100%; padding:13px; border:none; border-radius:8px; background:var(--cobra-navy); color:#fff; font-size:15px; font-weight:700; font-family:inherit; cursor:pointer; margin-top:8px; }
+  #loginBtn:hover{ background:var(--cobra-blue); }
+  #loginBtn:disabled{ opacity:.6; cursor:wait; }
+  #loginError{ display:none; background:var(--bad-bg); color:var(--bad); border-radius:8px; padding:10px 12px; font-size:13px; margin-bottom:14px; text-align:left; }
+
+  #appBox{ display:none; }
+  #logoutBtn{ background:none; border:1px solid var(--border); color:var(--cobra-navy); padding:8px 14px; border-radius:20px; font-size:12.5px; font-weight:700; font-family:inherit; cursor:pointer; white-space:nowrap; }
+  #logoutBtn:hover{ background:var(--panel-2); }
+
+  .resumen-general{ display:flex; align-items:center; gap:16px; padding:20px 22px; border-radius:14px; margin-bottom:24px; border:1px solid var(--border); }
+  .resumen-general.ok{ background:var(--ok-bg); border-color:rgba(31,169,113,.3); }
+  .resumen-general.warn{ background:var(--warn-bg); border-color:rgba(226,150,46,.3); }
+  .resumen-general.bad{ background:var(--bad-bg); border-color:rgba(226,82,62,.3); }
+  .resumen-general .texto b{ display:block; font-size:16px; margin-bottom:2px; }
+  .resumen-general.ok .texto b{ color:var(--ok); }
+  .resumen-general.warn .texto b{ color:var(--warn); }
+  .resumen-general.bad .texto b{ color:var(--bad); }
+  .resumen-general .texto span{ font-size:13px; color:var(--text-dim); }
+
+  .report-card{ margin-bottom:22px; }
+  .report-card .cabecera{ display:flex; align-items:center; gap:10px; margin-bottom:4px; }
+  .report-card .cabecera .icono{ font-size:22px; }
+  .report-card .cabecera h2{ font-size:17px; color:var(--cobra-navy); margin:0; }
+  .report-card .cabecera h2.clicable{ cursor:pointer; }
+  .report-card .cabecera h2.clicable:hover{ color:var(--cobra-blue); }
+  .report-card .cabecera h2.clicable .info-ico{ font-size:12px; margin-left:4px; opacity:.7; }
+
+  .modal-fondo{ display:none; position:fixed; inset:0; background:rgba(20,30,45,.45); z-index:50; align-items:center; justify-content:center; padding:20px; }
+  .modal-fondo.abierto{ display:flex; }
+  .modal-caja{ background:#fff; border-radius:14px; max-width:420px; width:100%; padding:24px; box-shadow:0 12px 40px rgba(0,0,0,.25); }
+  .modal-caja h3{ margin:0 0 10px; font-size:16px; color:var(--cobra-navy); }
+  .modal-caja p{ margin:0; font-size:13.5px; line-height:1.6; color:var(--text); }
+  .modal-cerrar{ margin-top:18px; width:100%; padding:10px; border:none; border-radius:8px; background:var(--cobra-navy); color:#fff; font-weight:700; font-size:13.5px; cursor:pointer; }
+  .modal-cerrar:hover{ background:var(--cobra-blue); }
+  .report-card .explica{ font-size:13px; color:var(--text-dim); margin:0 0 16px; line-height:1.55; }
+  .estado-pill{ display:inline-flex; align-items:center; gap:6px; padding:5px 13px; border-radius:20px; font-size:13px; font-weight:700; margin-bottom:14px; }
+  .estado-pill.ok{ background:var(--ok-bg); color:var(--ok); }
+  .estado-pill.warn{ background:var(--warn-bg); color:var(--warn); }
+  .estado-pill.bad{ background:var(--bad-bg); color:var(--bad); }
+
+  /* barra con la meta marcada (en Tigo las tasas son chicas: 4 %, 2,5 %) */
+  .barra-wrap{ margin:10px 0 18px; }
+  .barra-label{ font-size:15px; font-weight:800; margin-bottom:18px; }
+  .barra-label.ok{ color:var(--ok); } .barra-label.warn{ color:var(--warn); } .barra-label.bad{ color:var(--bad); }
+  .barra-track{ position:relative; height:14px; background:var(--panel-2); border-radius:7px; }
+  .barra-fill{ position:absolute; left:0; top:0; bottom:0; border-radius:7px; min-width:6px; }
+  .barra-fill.ok{ background:var(--ok); } .barra-fill.warn{ background:var(--warn); } .barra-fill.bad{ background:var(--bad); }
+  .barra-meta{ position:absolute; top:-4px; bottom:-4px; width:2px; background:#334; }
+  .barra-meta-label{ position:absolute; top:-18px; font-size:10.5px; color:var(--text-dim); transform:translateX(-50%); white-space:nowrap; }
+
+  .frase-clave{ font-size:14.5px; line-height:1.6; margin:0 0 14px; }
+  .frase-clave b{ color:var(--cobra-navy); }
+  .detalle-toggle{ font-size:12.5px; color:var(--celeste); font-weight:700; cursor:pointer; user-select:none; display:inline-flex; align-items:center; gap:4px; margin-top:6px; }
+  .detalle-body{ display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--panel-2); }
+  .detalle-body.abierto{ display:block; }
+  .fila-dato{ display:flex; justify-content:space-between; align-items:center; padding:7px 0; font-size:13px; }
+  .fila-dato .k{ color:var(--text-dim); }
+  .fila-dato .v{ font-weight:700; color:var(--text); text-align:right; }
+  .tabla-casos-wrap{ margin-top:14px; overflow-x:auto; }
+  .tabla-casos{ width:100%; border-collapse:collapse; font-size:12.5px; min-width:380px; }
+  .tabla-casos th{ text-align:left; padding:6px 8px; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--text-dim); border-bottom:1px solid var(--panel-2); white-space:nowrap; }
+  .tabla-casos td{ padding:6px 8px; border-bottom:1px solid var(--panel-2); white-space:nowrap; }
+  .tabla-casos td.causa{ white-space:normal; min-width:160px; }
+  .callout{ border-left:3px solid var(--celeste); background:linear-gradient(90deg, var(--celeste-soft), transparent); padding:12px 16px; border-radius:0 10px 10px 0; font-size:13px; color:#2c3e50; line-height:1.55; margin-top:14px; }
+  .sin-datos{ color:var(--text-dim); font-size:13.5px; font-style:italic; }
+  /* Casos con las dos peticiones (igual que VTR) */
+  .rep-card{ border:1px solid var(--panel-2); border-left:4px solid var(--bad); padding:10px 12px; margin:8px 0; font-size:13px; line-height:1.45; }
+  .rep-top{ font-weight:700; color:var(--cobra-navy); }
+  .rep-linea{ color:var(--text); }
+  .rep-tag{ display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:1px 7px; border-radius:6px; background:#e6eef8; color:#003c71; }
+  .rep-tag-r{ background:#fce4e0; color:#a3301f; }
+  .rep-sep{ margin:6px 0; padding:4px 0; border-top:1px dashed var(--panel-2); border-bottom:1px dashed var(--panel-2); color:var(--text-dim); font-size:12.5px; }
+  .comunicados-embed{ border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  .comunicados-embed iframe{ width:100%; height:420px; border:none; display:block; }
+  footer{ text-align:center; padding:26px 26px 8px; color:var(--text-dim); font-size:11.5px; }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@200;300;400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<!-- Sistema de diseno de la Academia Tecnica (el mismo del Portal Supervisor y del portal VTR):
+     el generador incrusta aca C:\Bases_Tigo\portal-supervisor\plantillas\estilo-academia.css -->
+<style>/*__ESTILO_ACADEMIA__*/</style>
+<style>
+  /* ===== Portal del tecnico: ajustes propios sobre el sistema de diseno (iguales a VTR) ===== */
+  main{ max-width:1100px; margin:0 auto; }
+  header.top .wrap, section.hero .wrap, footer.foot .wrap{ max-width:1100px; }
+  .oculto{ display:none !important; }
+  header.top .acciones-top{ margin-left:auto; display:flex; gap:10px; align-items:center; }
+  .btn-instalar{ display:inline-flex; align-items:center; gap:7px; background:var(--amber); color:#1d1a12; border:none; border-radius:2px; padding:9px 14px; font:600 12.5px/1.2 var(--font); letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
+  .btn-instalar:hover{ background:#ffb61a; }
+  .btn-instalar svg{ width:15px; height:15px; }
+  #logoutBtn{ padding:9px 14px; font-size:12px; }
+  @media (max-width:560px){ header.top .brand-name{ display:none; } header.top .brand-divider{ display:none; } .btn-instalar span{ display:none; } }
+  /* Foto de la portada: tecnico en el poste (tec.png de "Foto Respaldo", pedido del usuario 14-10-2026) */
+  section.hero .photo{ background-image:url("fondo-tecnicos.jpg"); background-position:50% 18%; }
+  section.hero .wrap{ min-height:0; padding-block:30px 32px; }
+  section.hero h1{ font-size:clamp(28px,3.4vw,42px); margin:10px 0; }
+  section.hero .subtitle{ font-size:16px; }
+  #heroSub b{ color:#fff; font-weight:600; }
+  @media (max-width:860px){
+    section.hero .photo{ width:62%; height:auto; bottom:0; background-position:52% 18%;
+      -webkit-mask-image:linear-gradient(90deg, transparent 0%, rgba(0,0,0,.5) 30%, #000 60%); mask-image:linear-gradient(90deg, transparent 0%, rgba(0,0,0,.5) 30%, #000 60%); }
+    section.hero .shade{ background:linear-gradient(90deg, #003575 0%, #003575 38%, rgba(0,53,117,.75) 55%, rgba(0,53,117,.25) 80%, rgba(0,53,117,0) 100%); }
+    section.hero .fibers{ -webkit-mask-image:linear-gradient(90deg, #000 0%, #000 40%, transparent 70%); mask-image:linear-gradient(90deg, #000 0%, #000 40%, transparent 70%); }
+    section.hero .wrap{ min-height:0; padding-block:22px 22px; }
+    /* el texto no pasa sobre el tecnico de la foto (pedido del usuario 14-10-2026) */
+    section.hero .wrap > div{ max-width:57%; }
+    section.hero h1{ font-size:24px; margin:6px 0; }
+    section.hero .subtitle{ font-size:13.5px; }
+  }
+  #loginBox{ max-width:440px; margin:0 auto; padding:30px 28px; }
+  #loginBox h2{ font:300 28px/1.2 var(--font) !important; letter-spacing:0 !important; text-transform:none !important; color:var(--navy) !important; margin:0 0 8px !important; }
+  #loginBox h2 b{ font-weight:700; }
+  .instalar-login{ margin-top:18px; font-size:13.5px; color:var(--muted); }
+  .instalar-login a{ color:var(--blue); font-weight:600; cursor:pointer; }
+
+  /* resumen rapido: una tarjeta por indicador */
+  .titulo-seccion:first-of-type{ margin-top:8px; }
+  .resumen-row{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
+  .ind-card{ background:var(--panel); border-top:3px solid var(--navy); padding:22px 22px 18px; cursor:pointer; transition:transform .2s ease, box-shadow .2s ease; display:flex; flex-direction:column; gap:6px; text-align:left; border-left:none; border-right:none; border-bottom:none; font:inherit; color:inherit; }
+  .ind-card:hover{ transform:translateY(-2px); box-shadow:0 14px 30px -22px rgba(0,53,117,.6); }
+  .ind-card.ok{ border-top-color:var(--ok); } .ind-card.warn{ border-top-color:var(--amber); } .ind-card.bad{ border-top-color:var(--bad); }
+  .ind-card .lbl{ font:600 11px/1.3 var(--font); letter-spacing:.14em; text-transform:uppercase; color:var(--blue); }
+  .ind-card .num{ font:200 46px/1.05 var(--font); color:var(--navy); font-variant-numeric:tabular-nums; }
+  .ind-card .num small{ font-size:18px; font-weight:300; margin-left:4px; }
+  .ind-card .meta{ font-size:13px; color:var(--muted); }
+  .ind-card .pie{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:6px; flex-wrap:wrap; }
+  .ind-card .estado-pill{ margin:0; }
+  .ind-card .puesto{ font:500 12.5px/1.3 var(--mono); color:var(--navy); }
+  .ind-card .ver{ font:600 11px/1.3 var(--font); letter-spacing:.1em; text-transform:uppercase; color:var(--blue); margin-top:4px; }
+
+  /* posicion en el equipo */
+  .rank-fila{ display:grid; grid-template-columns:minmax(150px,220px) 1fr; gap:10px 24px; align-items:center; padding:16px 0; border-bottom:1px solid var(--line); }
+  .rank-fila:last-child{ border-bottom:none; }
+  .rank-nombre{ font:600 15px/1.3 var(--font); color:var(--navy); }
+  .rank-nombre small{ display:block; font:400 13px/1.4 var(--font); color:var(--muted); margin-top:2px; }
+  .rank-pista{ position:relative; height:44px; }
+  .rank-pista .linea{ position:absolute; left:0; right:0; top:12px; height:4px; background:linear-gradient(90deg, var(--ok) 0%, #e6e8ec 50%, #e6e8ec 100%); }
+  .rank-pista .yo{ position:absolute; top:2px; width:24px; height:24px; margin-left:-12px; border-radius:50%; background:var(--navy); border:3px solid #fff; box-shadow:0 0 0 2px var(--navy); transition:left 1.4s cubic-bezier(.2,.7,.2,1); }
+  .rank-pista .extremo{ position:absolute; top:32px; font:600 10px/1 var(--font); letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  .rank-pista .extremo.izq{ left:0; } .rank-pista .extremo.der{ right:0; }
+  .rank-datos{ grid-column:2; display:flex; gap:20px; flex-wrap:wrap; font-size:13.5px; color:var(--muted); }
+  .rank-datos b{ font:500 14px/1.3 var(--mono); color:var(--navy); }
+  @media (max-width:640px){ .rank-fila{ grid-template-columns:1fr; } .rank-datos{ grid-column:1; } }
+
+  /* evolucion mes a mes */
+  .evo-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr)); gap:24px; }
+  .evo-grid .panel{ padding:22px 24px 18px; margin-bottom:0 !important; }
+  .evo-frase{ margin:0 0 12px; font-size:15px; font-weight:600; line-height:1.4; }
+  .evo-leyenda{ display:flex; gap:18px; font-size:12.5px; color:var(--muted); margin:2px 0 6px; flex-wrap:wrap; }
+  .evo-leyenda i{ display:inline-block; width:18px; height:3px; vertical-align:middle; margin-right:6px; background:var(--navy); }
+  .evo-leyenda i.eq{ background:none; border-top:2px dashed #8a93a3; height:0; }
+  .evo-nota{ margin:10px 0 0; font-size:12.5px; color:var(--muted); line-height:1.5; }
+  .detalle-grid .report-card{ margin-bottom:24px; }
+  @media (max-width:560px){
+    header.top .brand-row{ min-height:56px; padding-block:6px; }
+    header.top .brand-row img{ height:26px; }
+    section.hero .wrap{ padding-block:16px 16px; }
+    section.hero .wrap > div{ max-width:58%; }
+    section.hero h1{ font-size:20px; margin:4px 0; }
+    section.hero .eyebrow{ font-size:9.5px; letter-spacing:.08em; }
+    section.hero .subtitle{ font-size:12.5px; line-height:1.4; }
+    main{ padding-top:28px; }
+    .titulo-seccion{ font-size:22px; margin-top:30px; }
+    .resumen-row{ grid-template-columns:1fr 1fr; gap:12px; }
+    .ind-card{ padding:16px 14px 14px; }
+    .ind-card .lbl{ font-size:10px; letter-spacing:.1em; }
+    .ind-card .num{ font-size:34px; }
+    .ind-card .num small{ font-size:14px; }
+    .ind-card .meta{ font-size:12px; }
+    .ind-card .pie{ flex-direction:column; align-items:flex-start; gap:6px; }
+    .report-card{ padding:22px 18px 18px; }
+    .evo-grid .panel{ padding:18px 14px 14px; }
+  }
+  .pasos-ios{ margin:8px 0 0; padding-left:20px; font-size:15px; line-height:1.7; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap brand-row">
+    <img src="logo-cobra.png" alt="Cobra" id="logoCobra">
+    <div class="brand-divider"></div>
+    <div class="brand-name">Portal <strong>Técnico</strong></div>
+    <div class="acciones-top">
+      <button class="btn-instalar oculto" id="btnInstalar" type="button" title="Instalar en el celular"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M12 7v7"/><path d="M9 11l3 3 3-3"/></svg><span>Instalar app</span></button>
+      <button id="logoutBtn" class="oculto" type="button">Salir</button>
+    </div>
+  </div>
+</header>
+
+<section class="hero" aria-label="Portada">
+  <div class="photo"></div>
+  <div class="shade"></div>
+  <svg class="fibers" viewBox="0 0 1100 600" preserveAspectRatio="none" aria-hidden="true"><g class="strand"><path d="M-20 40 C339 12 744 101 1100 178"/><path d="M-20 76 C364 101 649 147 1100 187"/><path d="M-20 112 C389 130 694 193 1100 196"/><path d="M-20 148 C354 159 739 129 1100 205"/><path d="M-20 184 C379 188 644 175 1100 214"/><path d="M-20 220 C344 217 689 221 1100 223"/><path d="M-20 256 C369 246 734 157 1100 232"/><path d="M-20 292 C394 275 639 203 1100 241"/><path d="M-20 328 C359 304 684 249 1100 250"/><path d="M-20 364 C384 393 729 185 1100 259"/><path d="M-20 400 C349 422 634 231 1100 268"/><path d="M-20 436 C374 451 679 277 1100 277"/><path d="M-20 472 C339 480 724 213 1100 286"/><path d="M-20 508 C364 509 629 259 1100 295"/><path d="M-20 544 C389 538 674 305 1100 304"/><path d="M-20 580 C354 567 719 241 1100 313"/></g><path class="pulse p1" d="M-20 76 C364 101 649 147 1100 187"/><path class="pulse p2" d="M-20 184 C379 188 644 175 1100 214"/><path class="pulse p3" d="M-20 292 C394 275 639 203 1100 241"/><path class="pulse p4" d="M-20 400 C349 422 634 231 1100 268"/><path class="pulse p5" d="M-20 508 C364 509 629 259 1100 295"/></svg>
+  <div class="wrap"><div>
+    <p class="eyebrow" id="heroEyebrow">Cobra &middot; Indicadores personales</p>
+    <h1 id="heroTitulo">Mis <b>indicadores</b></h1>
+    <p class="subtitle" id="heroSub">Cómo te va este mes.</p>
+    <div class="banner-fiestas" id="bannerFiestas">
+      <div class="banner-fiestas-pill">
+        <svg class="mini-flag-cl" viewBox="0 0 90 60" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect x="0" y="0" width="90" height="30" fill="#ffffff"/>
+          <rect x="0" y="30" width="90" height="30" fill="#D52B1E"/>
+          <rect x="0" y="0" width="30" height="30" fill="#0039A6"/>
+          <polygon points="15,6 17.0,12.25 23.56,12.22 18.23,16.05 20.29,22.28 15,18.4 9.71,22.28 11.77,16.05 6.44,12.22 13.0,12.25" fill="#ffffff"/>
+        </svg>
+        <span>¡Feliz Mes de la Patria!</span><span class="dim" id="fiestasSubtexto"></span>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<main>
+  <!--__AVISO_PRUEBA__-->
+  <div id="loginBox" class="panel">
+    <div class="icono-login">👋</div>
+    <h2>Ingresa con tu <b>ID</b></h2>
+    <div id="loginError"></div>
+    <div class="campo">
+      <label for="inputNombre">ID</label>
+      <input type="text" id="inputNombre" placeholder="Ej: 456789" autocomplete="username" inputmode="numeric" maxlength="6">
+      <div class="ayuda">Los <b>últimos 6 números de tu RUT</b>. Si termina en K, pon 0.</div>
+    </div>
+    <button id="loginBtn">Entrar</button>
+    <p class="instalar-login oculto" id="instalarLogin">📱 <a id="linkInstalar">Instálalo en tu celular</a></p>
+  </div>
+
+  <div id="appBox">
+    <div id="resumenGeneral"></div>
+
+    <h2 class="titulo-seccion">Tu <b>mes</b></h2>
+    <div class="resumen-row" id="resumenCards"></div>
+
+    <div id="bloqueEvolucion">
+      <h2 class="titulo-seccion">Mes a <b>mes</b></h2>
+      <div class="evo-grid">
+        <div class="panel" id="panelEvoRep">
+          <h2>Repetido <span>· Reparado</span></h2>
+          <p class="evo-frase" id="evoRepExplicacion"></p>
+          <div class="evo-leyenda"><span><i></i>Tú</span><span><i class="eq"></i>Equipo</span></div>
+          <div id="evoRepChart"></div>
+        </div>
+        <div class="panel" id="panelEvoInf">
+          <h2>Averías <span>· de Infancia</span></h2>
+          <p class="evo-frase" id="evoInfExplicacion"></p>
+          <div class="evo-leyenda"><span><i></i>Tú</span><span><i class="eq"></i>Equipo</span></div>
+          <div id="evoInfChart"></div>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="titulo-seccion">En <b>detalle</b></h2>
+    <div class="detalle-grid">
+      <div class="report-card panel" id="seccionRep"></div>
+      <div class="report-card panel" id="seccionInf"></div>
+      <div class="report-card panel" id="seccionProd"></div>
+      <div class="report-card panel" id="seccionNps"></div>
+      <div class="report-card panel" id="seccionComunicados">
+        <div class="cabecera"><span class="icono">📢</span><h2>Comunicados</h2></div>
+        <div class="comunicados-embed">
+          <iframe src="https://drive.google.com/embeddedfolderview?id=1QAMz_gPdQk7LzfTTxzMq7H5MUmIcpCwN#grid" loading="lazy" title="Comunicados"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="modal-fondo" id="modalInfo" onclick="if (event.target === this) cerrarInfo()">
+  <div class="modal-caja">
+    <h3 id="modalInfoTitulo"></h3>
+    <p id="modalInfoTexto"></p>
+    <button class="modal-cerrar" onclick="cerrarInfo()">Entendido</button>
+  </div>
+</div>
+
+<footer class="foot"><div class="wrap">
+  <span id="footerText"></span>
+  <span class="by">Diseño y desarrollo <b>J.V.Soft...</b> &middot; <b>SMSI</b> &middot; Construyendo ideas</span>
+</div></footer>
+
+<script>
+const DATA = __DATA_JSON__;
+
+function titleCase(s) { return (s || '').split(' ').map(w => w ? w[0] + w.slice(1).toLowerCase() : w).join(' '); }
+function numero(v, dec) {
+  return Number(v).toLocaleString('es-CL', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+const txt = (v) => String(v == null ? '' : v).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+document.getElementById('footerText').innerHTML =
+  'Datos de ' + txt(DATA.periodoLabel) + ' (avance del mes) · Productividad: ' + txt(DATA.periodoProductividad || 'sin dato')
+  + ' · NPS: ' + txt(DATA.periodoNps || 'sin dato') + ' · Generado ' + txt(DATA.generadoEl);
+
+// ---------- Estados (textos cortos, los que ya conocen los tecnicos) ----------
+// Repetido e Infancia: mas bajo es mejor.
+function estadoTasa(tasa, meta) {
+  if (tasa <= meta) return { emoji: '✅', texto: 'Cumples la meta', clase: 'ok' };
+  if (tasa <= meta * 1.5) return { emoji: '⚠️', texto: 'Fuera de la meta', clase: 'warn' };
+  return { emoji: '🔴', texto: 'Muy fuera de la meta', clase: 'bad' };
+}
+// Productividad: mas alto es mejor.
+function estadoProd(v, meta) {
+  if (v >= meta) return { emoji: '✅', texto: 'Cumples la meta', clase: 'ok' };
+  if (v >= meta * 0.8) return { emoji: '⚠️', texto: 'Cerca de la meta', clase: 'warn' };
+  return { emoji: '🔴', texto: 'Bajo la meta', clase: 'bad' };
+}
+// NPS: mas alto es mejor.
+function estadoNps(v, meta) {
+  if (v >= meta) return { emoji: '✅', texto: 'Cumples la meta', clase: 'ok' };
+  if (v >= meta - 15) return { emoji: '⚠️', texto: 'Fuera de la meta', clase: 'warn' };
+  return { emoji: '🔴', texto: 'Muy fuera de la meta', clase: 'bad' };
+}
+
+// Barra con la meta marcada. "escala" es el valor que llena la barra completa.
+function barraMeta(valor, textoValor, meta, textoMeta, escala, cls, desde) {
+  const base = desde || 0;
+  const pos = (v) => Math.max(0, Math.min(100, ((v - base) / (escala - base)) * 100));
+  return '<div class="barra-wrap">'
+    + '<div class="barra-label ' + cls + '">' + textoValor + '</div>'
+    + '<div class="barra-track">'
+    + '<div class="barra-fill ' + cls + '" style="width:' + pos(valor).toFixed(1) + '%"></div>'
+    + '<div class="barra-meta" style="left:' + pos(meta).toFixed(1) + '%"></div>'
+    + '<div class="barra-meta-label" style="left:' + pos(meta).toFixed(1) + '%">' + textoMeta + '</div>'
+    + '</div></div>';
+}
+
+let contadorDetalle = 0;
+function cabecera(icono, titulo, claveInfo) {
+  return '<div class="cabecera"><span class="icono">' + icono + '</span>'
+    + '<h2 class="clicable" onclick="mostrarInfo(\'' + claveInfo + '\')">' + titulo + '<span class="info-ico">ⓘ</span></h2></div>';
+}
+function toggleDetalle(id) {
+  const el = document.getElementById(id);
+  const flecha = document.getElementById(id + 'Flecha');
+  const abierto = el.classList.toggle('abierto');
+  flecha.textContent = abierto ? '▴' : '▾';
+}
+window.toggleDetalle = toggleDetalle;
+function abrirDetalle() {
+  contadorDetalle++;
+  const id = 'detalle' + contadorDetalle;
+  return { id, boton: '<div class="detalle-toggle" onclick="toggleDetalle(\'' + id + '\')">Ver detalle <span id="' + id + 'Flecha">▾</span></div><div class="detalle-body" id="' + id + '">' };
+}
+const pct = (v) => numero(v, v % 1 ? 1 : 0) + '%';
+
+// Un caso = las dos peticiones: la del tecnico y la que vino despues (como VTR).
+// SIN direccion ni telefono del cliente.
+function fechaCorta(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '—'; }
+function tarjetasCasos(casos, etq) {
+  if (!casos || casos.length === 0) return '';
+  return casos.map((c) => '<div class="rep-card">'
+    + '<div class="rep-top"><span class="rep-tag">' + etq[0] + '</span> ' + txt(c.folio || '—') + ' · ' + fechaCorta(c.fecha) + '</div>'
+    + '<div class="rep-sep">' + etq[1] + (c.dias != null ? ' a los <b>' + c.dias + ' día' + (c.dias === 1 ? '' : 's') + '</b>' : '') + '</div>'
+    + '<div class="rep-top"><span class="rep-tag rep-tag-r">' + etq[2] + '</span> ' + txt(c.folio2 || '—') + ' · ' + fechaCorta(c.fecha2) + '</div>'
+    + (c.causa2 ? '<div class="rep-linea">' + txt(c.causa2) + '</div>' : '')
+    + '</div>').join('');
+}
+
+// Repetido Reparado e Infancia: numero, estado, una frase y (si hay) la causa mas comun.
+function bloqueTasa(o) {
+  const { icono, titulo, claveInfo, meta, datos, queHiciste, queFallo } = o;
+  if (!datos || !datos.total) return cabecera(icono, titulo, claveInfo) + '<p class="sin-datos">Sin datos este mes.</p>';
+  const est = estadoTasa(datos.tasa, meta);
+  const d = abrirDetalle();
+  let html = cabecera(icono, titulo, claveInfo);
+  html += '<div class="estado-pill ' + est.clase + '">' + est.emoji + ' ' + est.texto + '</div>';
+  html += barraMeta(datos.tasa, pct(datos.tasa), meta, 'Meta ' + pct(meta), Math.max(datos.tasa, meta * 2, 5) * 1.15, est.clase);
+  html += '<p class="frase-clave"><b>' + datos.reincidencias + ' de ' + datos.total + '</b> ' + queHiciste + ' ' + (datos.reincidencias === 1 ? queFallo[0] : queFallo[1]) + '.</p>';
+  if (datos.causaFrecuente) html += '<div class="callout">🔍 Causa más común: <b>' + txt(datos.causaFrecuente.split(' - ')[0]) + '</b></div>';
+  html += d.boton;
+  if (datos.tasaAnterior != null && DATA.labelMesAnterior) html += '<div class="fila-dato"><span class="k">Mes anterior (' + txt(DATA.labelMesAnterior) + ')</span><span class="v">' + pct(datos.tasaAnterior) + '</span></div>';
+  if (datos.diasPromedio != null) html += '<div class="fila-dato"><span class="k">Días promedio hasta la falla</span><span class="v">' + numero(datos.diasPromedio, 1) + '</span></div>';
+  html += tarjetasCasos(datos.casos, o.etiquetas) + '</div>';
+  return html;
+}
+
+function bloqueProd(p) {
+  const meta = DATA.metaProductividad;
+  if (!p) return cabecera('📦', 'Productividad', 'prod') + '<p class="sin-datos">Sin datos este mes.</p>';
+  const est = estadoProd(p.prodDia, meta);
+  const d = abrirDetalle();
+  const n = (v) => numero(v, v % 1 ? 2 : 0);
+  let html = cabecera('📦', 'Productividad', 'prod');
+  html += '<div class="estado-pill ' + est.clase + '">' + est.emoji + ' ' + est.texto + '</div>';
+  html += barraMeta(p.prodDia, numero(p.prodDia, 2) + ' por día', meta, 'Meta ' + meta, Math.max(p.prodDia, meta) * 1.3, est.clase);
+  html += '<p class="frase-clave"><b>' + n(p.total) + '</b> productos en <b>' + p.dias + '</b> días.</p>';
+  html += d.boton
+    + '<div class="fila-dato"><span class="k">Instala</span><span class="v">' + n(p.instala) + '</span></div>'
+    + '<div class="fila-dato"><span class="k">Repara</span><span class="v">' + n(p.repara) + '</span></div></div>';
+  return html;
+}
+
+function bloqueNps(nps) {
+  const meta = DATA.metaNps;
+  if (meta == null || !nps || nps.nps == null) return cabecera('⭐', 'NPS', 'nps') + '<p class="sin-datos">Sin encuestas suficientes este mes.</p>';
+  const est = estadoNps(nps.nps, meta);
+  const d = abrirDetalle();
+  let html = cabecera('⭐', 'NPS', 'nps');
+  html += '<div class="estado-pill ' + est.clase + '">' + est.emoji + ' ' + est.texto + '</div>';
+  html += barraMeta(nps.nps, pct(nps.nps), meta, 'Meta ' + meta + '%', 100, est.clase, -100);
+  html += '<p class="frase-clave"><b>' + nps.total + '</b> encuestas de tus clientes.</p>';
+  html += d.boton
+    + '<div class="fila-dato"><span class="k">Te recomiendan (9-10)</span><span class="v">' + nps.promotores + '</span></div>'
+    + '<div class="fila-dato"><span class="k">Neutros (7-8)</span><span class="v">' + nps.neutros + '</span></div>'
+    + '<div class="fila-dato"><span class="k">No te recomiendan (0-6)</span><span class="v">' + nps.detractores + '</span></div></div>';
+  return html;
+}
+
+// Al tocar el titulo de un indicador: que es, en dos lineas.
+const INFO_METRICAS = {
+  rep: { titulo: 'Repetido Reparado', texto: 'Reparaciones tuyas que vuelven a fallar antes de 30 días. Meta: no más de ' + pct(DATA.metaReincidencias) + '. Más bajo es mejor.' },
+  inf: { titulo: 'Averías de Infancia', texto: 'Instalaciones tuyas que fallan poco después de instaladas. Meta: no más de ' + pct(DATA.metaInfancia) + '. Más bajo es mejor.' },
+  prod: { titulo: 'Productividad', texto: 'Productos que dejas listos por día trabajado. Meta: ' + DATA.metaProductividad + ' por día. Más alto es mejor.' },
+  nps: { titulo: 'NPS', texto: 'Cuánto te recomiendan tus clientes en la encuesta. Meta: ' + (DATA.metaNps != null ? DATA.metaNps + '%' : '-') + '. Más alto es mejor.' },
+};
+function mostrarInfo(clave) {
+  const info = INFO_METRICAS[clave];
+  if (!info) return;
+  document.getElementById('modalInfoTitulo').textContent = info.titulo;
+  document.getElementById('modalInfoTexto').innerHTML = info.texto;
+  document.getElementById('modalInfo').classList.add('abierto');
+}
+function cerrarInfo() { document.getElementById('modalInfo').classList.remove('abierto'); }
+window.mostrarInfo = mostrarInfo;
+window.cerrarInfo = cerrarInfo;
+
+// ---------- Tu mes: una tarjeta por indicador ----------
+function tarjeta(titulo, valor, meta, est, ranking, destino) {
+  return '<button type="button" class="ind-card ' + est.clase + '" data-ir="' + destino + '">'
+    + '<span class="lbl">' + titulo + '</span>'
+    + '<span class="num">' + valor + '</span>'
+    + '<span class="meta">' + meta + '</span>'
+    + '<span class="pie"><span class="estado-pill ' + est.clase + '">' + est.texto + '</span>' + (ranking ? '<span class="puesto">#' + ranking.puesto + ' de ' + ranking.de + '</span>' : '') + '</span>'
+    + '</button>';
+}
+function renderResumen(t) {
+  const r = t.ranking || {};
+  const cards = [];
+  if (t.reincidencias && t.reincidencias.total) cards.push(tarjeta('Repetido', pct(t.reincidencias.tasa), 'Meta: máx. ' + pct(DATA.metaReincidencias), estadoTasa(t.reincidencias.tasa, DATA.metaReincidencias), r.rep, 'seccionRep'));
+  if (t.infancia && t.infancia.total) cards.push(tarjeta('Infancia', pct(t.infancia.tasa), 'Meta: máx. ' + pct(DATA.metaInfancia), estadoTasa(t.infancia.tasa, DATA.metaInfancia), r.inf, 'seccionInf'));
+  if (t.productividad) cards.push(tarjeta('Productividad', numero(t.productividad.prodDia, 2) + '<small>/día</small>', 'Meta: ' + DATA.metaProductividad + ' por día', estadoProd(t.productividad.prodDia, DATA.metaProductividad), r.prod, 'seccionProd'));
+  if (t.nps && t.nps.nps != null && DATA.metaNps != null) cards.push(tarjeta('NPS', pct(t.nps.nps), 'Meta: ' + DATA.metaNps + '%', estadoNps(t.nps.nps, DATA.metaNps), r.nps, 'seccionNps'));
+  const cont = document.getElementById('resumenCards');
+  cont.innerHTML = cards.join('') || '<p class="sin-datos">Sin datos este mes.</p>';
+  cont.querySelectorAll('.ind-card').forEach((b) => b.addEventListener('click', () => {
+    const destino = document.getElementById(b.dataset.ir);
+    if (destino) destino.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
+}
+
+// ---------- Mes a mes (mismo grafico que VTR) ----------
+function formatMesCorto(iso) {
+  const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  return MESES[parseInt(iso.split('-')[1], 10) - 1] || iso;
+}
+function dibujarLineChart(el, fechas, valores, formatLabel, etiquetarTodos, opciones) {
+  opciones = opciones || {};
+  const puntos = valores.map((v, i) => ({ x: i, v })).filter((p) => p.v != null);
+  if (puntos.length < 2) { el.innerHTML = ''; return false; }
+  const equipo = (opciones.equipo || []).map((v, i) => ({ x: i, v })).filter((p) => p.v != null && p.x < fechas.length);
+  const W = Math.max(300, Math.min(700, el.clientWidth || 700));
+  const compacto = W < 520;
+  // Pedido del usuario: que se vean todos los meses (y su valor) aunque la pantalla sea angosta.
+  if (compacto && fechas.length > 6) etiquetarTodos = false;
+  const H = compacto ? 210 : 230, padL = 38, padR = 12, padT = 26, padB = 30;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const todos = puntos.concat(equipo).map((p) => p.v).concat(opciones.meta != null ? [opciones.meta] : []);
+  const maxV = Math.max(...todos, 1);
+  const paso = maxV > 40 ? 20 : 2;
+  const yMax = Math.ceil((maxV * 1.15) / paso) * paso || paso;
+  const n = fechas.length;
+  const xAt = (i) => padL + (n <= 1 ? 0 : (i / (n - 1)) * plotW);
+  const yAt = (v) => padT + plotH - (v / yMax) * plotH;
+  const linea = (pts) => pts.map((p, i) => (i === 0 ? 'M' : 'L') + xAt(p.x).toFixed(1) + ',' + yAt(p.v).toFixed(1)).join(' ');
+  const pathD = linea(puntos);
+  const areaD = pathD + ' L' + xAt(puntos[puntos.length - 1].x).toFixed(1) + ',' + (padT + plotH) + ' L' + xAt(puntos[0].x).toFixed(1) + ',' + (padT + plotH) + ' Z';
+  const gridLines = [0, 0.5, 1].map((f) => {
+    const v = yMax * f, y = yAt(v);
+    return '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + y.toFixed(1) + '" stroke="#e0e5ea" stroke-width="1"/>'
+      + '<text x="' + (padL - 8) + '" y="' + (y + 4).toFixed(1) + '" font-size="10" fill="#6b7a8c" text-anchor="end">' + v.toFixed(0) + '%</text>';
+  }).join('');
+  const lineaMeta = opciones.meta != null
+    ? '<line x1="' + padL + '" y1="' + yAt(opciones.meta).toFixed(1) + '" x2="' + (W - padR) + '" y2="' + yAt(opciones.meta).toFixed(1) + '" stroke="#f0a500" stroke-width="1.5"/>'
+      // La etiqueta de la meta va a la izquierda y bajo la linea, para no taparse con el valor del ultimo mes.
+      + '<text x="' + (padL + 4) + '" y="' + (yAt(opciones.meta) + 12).toFixed(1) + '" font-size="10" font-weight="700" fill="#9a5b00" text-anchor="start">Meta ' + pct(opciones.meta) + '</text>'
+    : '';
+  const idxLabels = compacto && n > 8 ? [...Array(n).keys()].filter((i) => (n - 1 - i) % 2 === 0) : n <= 12 ? [...Array(n).keys()] : [0, Math.floor((n - 1) / 2), n - 1];
+  const xLabels = [...new Set(idxLabels)].map((i) => {
+    const texto = compacto ? formatLabel(fechas[i]).replace(/ \(.*\)$/, '*') : formatLabel(fechas[i]);
+    const alFinal = i === n - 1 && texto.length > 4;
+    return '<text x="' + (alFinal ? W - 2 : xAt(i)).toFixed(1) + '" y="' + (H - 8) + '" font-size="10" fill="#6b7a8c" text-anchor="' + (alFinal ? 'end' : 'middle') + '">' + texto + '</text>';
+  }).join('');
+  const puntosAEtiquetar = etiquetarTodos ? puntos : [puntos[puntos.length - 1]];
+  const marcadores = puntosAEtiquetar.map((p) =>
+    '<circle cx="' + xAt(p.x).toFixed(1) + '" cy="' + yAt(p.v).toFixed(1) + '" r="4" fill="var(--cobra-navy)"/>'
+    // Primer y ultimo valor alineados hacia adentro para que no se corten en los bordes.
+    + '<text x="' + (xAt(p.x) + (p.x === n - 1 ? 4 : p.x === 0 ? -4 : 0)).toFixed(1) + '" y="' + (yAt(p.v) - 10).toFixed(1) + '" font-size="11" font-weight="700" fill="var(--cobra-navy)" text-anchor="' + (p.x === n - 1 ? 'end' : p.x === 0 ? 'start' : 'middle') + '">' + numero(p.v, 1) + '%</text>'
+  ).join('');
+  el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%; height:auto; display:block; font-size:11px;" role="img">'
+    + gridLines
+    + '<path d="' + areaD + '" fill="var(--celeste-soft)" opacity="0.7"/>'
+    + lineaMeta
+    + (equipo.length > 1 ? '<path d="' + linea(equipo) + '" fill="none" stroke="#8a93a3" stroke-width="2" stroke-dasharray="6 5" stroke-linejoin="round"/>' : '')
+    + '<path class="trazo" d="' + pathD + '" fill="none" stroke="var(--cobra-navy)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'
+    + marcadores + xLabels + '</svg>';
+  return true;
+}
+// Una sola linea: el ultimo mes cerrado contra los anteriores (mas bajo es mejor).
+function explicarTendencia(valores) {
+  const puntos = valores.filter((v) => v != null);
+  if (puntos.length < 2) return '';
+  const ultimo = puntos[puntos.length - 1];
+  const previos = puntos.slice(Math.max(0, puntos.length - 4), puntos.length - 1);
+  const diff = ultimo - previos.reduce((a, b) => a + b, 0) / previos.length;
+  if (Math.abs(diff) < 0.5) return '<span style="color:var(--warn);">➡️ Estable</span>';
+  if (diff < 0) return '<span style="color:var(--ok);">✅ Mejorando</span>';
+  return '<span style="color:var(--bad);">🔴 Subiendo</span>';
+}
+function renderEvo(t, clave, panelId, chartId, explId, meta) {
+  const panel = document.getElementById(panelId);
+  const ev = t.evolutivo;
+  const valores = ev && ev[clave];
+  if (!valores || valores.filter((v) => v != null).length < 2) { panel.style.display = 'none'; return false; }
+  panel.style.display = '';
+  const ultimo = valores.length - 1;
+  const parcial = valores[ultimo] != null;
+  const etiqueta = (iso) => formatMesCorto(iso) + (parcial && iso === ev.meses[ultimo] ? ' (en curso)' : '');
+  dibujarLineChart(document.getElementById(chartId), ev.meses, valores, etiqueta, true, { equipo: ev['equipo_' + clave], meta });
+  document.getElementById(explId).innerHTML = explicarTendencia(parcial ? valores.slice(0, -1) : valores);
+  return true;
+}
+function renderEvolucion(t) {
+  const a = renderEvo(t, 'rep', 'panelEvoRep', 'evoRepChart', 'evoRepExplicacion', DATA.metaReincidencias);
+  const b = renderEvo(t, 'inf', 'panelEvoInf', 'evoInfChart', 'evoInfExplicacion', DATA.metaInfancia);
+  document.getElementById('bloqueEvolucion').style.display = a || b ? '' : 'none';
+}
+
+const HERO_INICIAL = {
+  eyebrow: document.getElementById('heroEyebrow').innerHTML,
+  titulo: document.getElementById('heroTitulo').innerHTML,
+  sub: document.getElementById('heroSub').innerHTML,
+};
+
+function mostrarPerfil(t) {
+  document.getElementById('loginBox').style.display = 'none';
+  document.getElementById('appBox').style.display = 'block';
+  document.getElementById('logoutBtn').classList.remove('oculto');
+
+  const nombre = titleCase(t.nombre);
+  const primer = nombre.split(' ')[0] || nombre;
+  const resto = nombre.slice(primer.length).trim();
+  document.getElementById('heroEyebrow').innerHTML = 'Tu reporte personal &middot; ' + txt(DATA.periodoLabel);
+  document.getElementById('heroTitulo').innerHTML = 'Hola, <b>' + txt(primer) + '</b>' + (resto ? ' ' + txt(resto) : '');
+  const meta = [];
+  if (t.supervisor) meta.push('Supervisor: <b>' + txt(titleCase(t.supervisor)) + '</b>');
+  if (t.agencia) meta.push('Agencia: <b>' + txt(titleCase(t.agencia)) + '</b>');
+  document.getElementById('heroSub').innerHTML = meta.join(' &middot; ');
+
+  const estados = [];
+  if (t.reincidencias && t.reincidencias.total) estados.push(estadoTasa(t.reincidencias.tasa, DATA.metaReincidencias).clase);
+  if (t.infancia && t.infancia.total) estados.push(estadoTasa(t.infancia.tasa, DATA.metaInfancia).clase);
+  if (t.productividad) estados.push(estadoProd(t.productividad.prodDia, DATA.metaProductividad).clase);
+  if (t.nps && t.nps.nps != null && DATA.metaNps != null) estados.push(estadoNps(t.nps.nps, DATA.metaNps).clase);
+  let claseGeneral = 'ok', mensajeGeneral = '<b>¡Vas bien este mes!</b>';
+  if (estados.includes('bad')) {
+    claseGeneral = 'bad';
+    mensajeGeneral = '<b>Tienes un indicador muy fuera de la meta.</b>';
+  } else if (estados.includes('warn')) {
+    claseGeneral = 'warn';
+    mensajeGeneral = '<b>Tienes un indicador fuera de la meta.</b>';
+  }
+  document.getElementById('resumenGeneral').innerHTML = '<div class="resumen-general ' + claseGeneral + '"><div class="texto">' + mensajeGeneral + '</div></div>';
+
+  renderResumen(t);
+  tecnicoActual = t;
+  renderEvolucion(t);
+  document.getElementById('seccionRep').innerHTML = bloqueTasa({
+    icono: '🔁', titulo: 'Repetido Reparado', claveInfo: 'rep', meta: DATA.metaReincidencias, datos: t.reincidencias,
+    queHiciste: 'reparaciones', queFallo: ['volvió a fallar', 'volvieron a fallar'],
+    etiquetas: ['Tu reparación', 'Volvió a fallar', 'Nueva falla'],
+  });
+  document.getElementById('seccionInf').innerHTML = bloqueTasa({
+    icono: '🏠', titulo: 'Averías de Infancia', claveInfo: 'inf', meta: DATA.metaInfancia, datos: t.infancia,
+    queHiciste: 'instalaciones', queFallo: ['falló al poco tiempo', 'fallaron al poco tiempo'],
+    etiquetas: ['Tu instalación', 'Falló', 'Reparación'],
+  });
+  document.getElementById('seccionProd').innerHTML = bloqueProd(t.productividad);
+  document.getElementById('seccionNps').innerHTML = bloqueNps(t.nps);
+  window.scrollTo(0, 0);
+}
+
+// Al girar el celular o cambiar el ancho de la ventana, los graficos se vuelven a dibujar.
+let tecnicoActual = null, esperaAncho = null, anchoPrevio = window.innerWidth;
+window.addEventListener('resize', () => {
+  if (!tecnicoActual || window.innerWidth === anchoPrevio) return;
+  anchoPrevio = window.innerWidth;
+  clearTimeout(esperaAncho);
+  esperaAncho = setTimeout(() => renderEvolucion(tecnicoActual), 200);
+});
+
+function volverAlIngreso() {
+  tecnicoActual = null;
+  document.getElementById('appBox').style.display = 'none';
+  document.getElementById('loginBox').style.display = 'block';
+  document.getElementById('logoutBtn').classList.add('oculto');
+  document.getElementById('heroEyebrow').innerHTML = HERO_INICIAL.eyebrow;
+  document.getElementById('heroTitulo').innerHTML = HERO_INICIAL.titulo;
+  document.getElementById('heroSub').innerHTML = HERO_INICIAL.sub;
+  document.getElementById('inputNombre').value = '';
+}
+
+// ---------- Instalar en el celular (igual que VTR) ----------
+(function () {
+  const yaInstalada = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  if (yaInstalada) return;
+  const esIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const boton = document.getElementById('btnInstalar');
+  const aviso = document.getElementById('instalarLogin');
+  let pedido = null;
+  const mostrar = () => { boton.classList.remove('oculto'); aviso.classList.remove('oculto'); };
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); pedido = e; mostrar(); });
+  window.addEventListener('appinstalled', () => { boton.classList.add('oculto'); aviso.classList.add('oculto'); pedido = null; });
+  if (esIos) mostrar();
+  async function instalar() {
+    if (pedido) {
+      pedido.prompt();
+      try { await pedido.userChoice; } catch (e) { /* cerro la ventana */ }
+      pedido = null;
+      return;
+    }
+    document.getElementById('modalInfoTitulo').textContent = 'Instalar en tu celular';
+    document.getElementById('modalInfoTexto').innerHTML = esIos
+      ? 'En Safari:<ol class="pasos-ios"><li>Toca el botón <b>Compartir</b> (el cuadrado con la flecha hacia arriba).</li><li>Elige <b>Agregar a inicio</b>.</li><li>Toca <b>Agregar</b>.</li></ol>El portal quedará en tu pantalla de inicio como una app.'
+      : 'Abre el menú del navegador (los tres puntos) y elige <b>Instalar app</b> o <b>Agregar a pantalla de inicio</b>.';
+    document.getElementById('modalInfo').classList.add('abierto');
+  }
+  boton.addEventListener('click', instalar);
+  document.getElementById('linkInstalar').addEventListener('click', instalar);
+})();
+
+// Los datos de cada tecnico se piden a Supabase con su ID (funcion datos_tecnico, que
+// ademas anota el ingreso y frena a quien prueba muchos ID). La pagina publicada no los trae.
+const SUPA_URL = '__SUPABASE_URL__', SUPA_KEY = '__SUPABASE_KEY__';
+const CLAVE_DATOS = 'portalTecnicoDatos';
+
+async function obtenerTecnico(key) {
+  if (DATA.tecnicos && DATA.tecnicos[key]) return { ok: true, datos: DATA.tecnicos[key] };
+  if (SUPA_URL.indexOf('http') !== 0 || !SUPA_KEY) return { ok: false, motivo: 'no_existe' };
+  const r = await fetch(SUPA_URL + '/rest/v1/rpc/datos_tecnico', {
+    method: 'POST',
+    headers: { apikey: SUPA_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ p_id: key }),
+  });
+  if (!r.ok) throw new Error('respuesta ' + r.status);
+  return r.json();
+}
+
+async function intentarLogin() {
+  const key = document.getElementById('inputNombre').value.trim().toUpperCase().replace(/K$/, '0');
+  const errorBox = document.getElementById('loginError');
+  const boton = document.getElementById('loginBtn');
+  const avisar = (texto) => { errorBox.textContent = texto; errorBox.style.display = texto ? 'block' : 'none'; };
+  if (!key) { avisar('Escribe tu ID.'); return; }
+  avisar('');
+  boton.disabled = true;
+  try {
+    const r = await obtenerTecnico(key);
+    if (!r || !r.ok) {
+      avisar(r && r.motivo === 'espera' ? 'Demasiados intentos. Espera un minuto.' : 'ID no encontrado. Son los últimos 6 números de tu RUT.');
+      return;
+    }
+    DATA.tecnicos = DATA.tecnicos || {};
+    DATA.tecnicos[key] = r.datos;
+    sessionStorage.setItem('portalTecnicoKey', key);
+    try { sessionStorage.setItem(CLAVE_DATOS, JSON.stringify(r.datos)); } catch (e) { /* sin almacenamiento */ }
+    mostrarPerfil(r.datos);
+  } catch (err) {
+    avisar('No se pudo conectar. Revisa tu señal e intenta de nuevo.');
+  } finally {
+    boton.disabled = false;
+  }
+}
+
+document.getElementById('loginBtn').addEventListener('click', intentarLogin);
+document.getElementById('inputNombre').addEventListener('keydown', (e) => { if (e.key === 'Enter') intentarLogin(); });
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  sessionStorage.removeItem('portalTecnicoKey');
+  sessionStorage.removeItem(CLAVE_DATOS);
+  volverAlIngreso();
+});
+
+// Al recargar la pestaña se vuelve a mostrar el mismo tecnico, sin pedirlo de nuevo.
+const keyGuardada = sessionStorage.getItem('portalTecnicoKey');
+if (keyGuardada) {
+  let guardado = DATA.tecnicos && DATA.tecnicos[keyGuardada];
+  if (!guardado) { try { guardado = JSON.parse(sessionStorage.getItem(CLAVE_DATOS)); } catch (e) { guardado = null; } }
+  if (guardado) {
+    DATA.tecnicos = DATA.tecnicos || {};
+    DATA.tecnicos[keyGuardada] = guardado;
+    mostrarPerfil(guardado);
+  }
+}
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+
+<!-- Easter egg (igual que VTR): 7 clics seguidos en el logo. Aislado para que no afecte al portal. -->
+<script>
+try {
+  (function () {
+    var logo = document.getElementById('logoCobra');
+    if (!logo) return;
+    var clicks = 0, lastClick = 0, activo = false;
+    function obtenerMensajes() {
+      var nombreComa = '';
+      try {
+        var k = sessionStorage.getItem('portalTecnicoKey');
+        if (k && typeof DATA !== 'undefined' && DATA.tecnicos && DATA.tecnicos[k] && DATA.tecnicos[k].nombre) {
+          var primerNombre = DATA.tecnicos[k].nombre.trim().split(/\s+/)[0];
+          if (primerNombre) nombreComa = ', ' + primerNombre.charAt(0).toUpperCase() + primerNombre.slice(1).toLowerCase();
+        }
+      } catch (eNombre) { /* mensajes genericos */ }
+      return {
+        generales: [
+          '🎉 ¡Encontraste el easter egg' + nombreComa + '! Gracias por tu trabajo día a día.',
+          '🏆 Cada instalación bien hecha cuenta, aunque no siempre se note. Gracias por tu esfuerzo' + nombreComa + '.',
+          '💪 Sigue así' + nombreComa + ' — tus números lo reflejan.',
+          '🔧 El trabajo bien hecho se nota, aunque el cliente no siempre lo diga. Gracias' + nombreComa + '.',
+          '🚀 Un cliente conforme hoy es un cliente que no repite. Buen trabajo' + nombreComa + '.',
+          '☕ Un cafecito virtual por tu trabajo de todos los días' + nombreComa + '.'
+        ],
+        septiembre: [
+          '🎉 ¡Viva Chile! Gracias por seguir dando el ancho, hasta en Fiestas Patrias' + nombreComa + '.',
+          '🎊 Feliz Dieciocho' + nombreComa + ' — que haya harto asado, cueca y buenos números.',
+          '⭐ ¡Arriba Chile! Gracias por tu trabajo' + nombreComa + '.',
+          '🎈 Que este Dieciocho tenga tanto asado como buenos indicadores' + nombreComa + '.'
+        ]
+      };
+    }
+    try {
+      var hoy = new Date();
+      if (hoy.getMonth() === 8) {
+        var banner = document.getElementById('bannerFiestas');
+        if (banner) {
+          banner.style.display = 'inline-block';
+          var sub = document.getElementById('fiestasSubtexto');
+          if (sub) sub.textContent = 'Septiembre ' + hoy.getFullYear();
+        }
+      }
+    } catch (eBanner) { /* sin banner */ }
+    function lanzarConfeti() {
+      if (activo) return;
+      activo = true;
+      var canvas = document.createElement('canvas');
+      canvas.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:9999;';
+      canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+      document.body.appendChild(canvas);
+      var ctx = canvas.getContext('2d');
+      var esSeptiembre = new Date().getMonth() === 8;
+      var colores = esSeptiembre ? ['#0039A6', '#ffffff', '#D52B1E', '#0039A6', '#D52B1E'] : ['#003c71', '#0071ce', '#29a9e0', '#1fa971', '#e2962e', '#ffd23f'];
+      var piezas = [];
+      for (var i = 0; i < 140; i++) {
+        piezas.push({ x: Math.random() * canvas.width, y: -20 - Math.random() * canvas.height * 0.5, w: 6 + Math.random() * 6, h: 4 + Math.random() * 8,
+          color: colores[Math.floor(Math.random() * colores.length)], vy: 2 + Math.random() * 3, vx: (Math.random() - 0.5) * 2.5, rot: Math.random() * Math.PI * 2, vrot: (Math.random() - 0.5) * 0.3 });
+      }
+      var inicio = null, duracionMs = 2600, limpiado = false;
+      function limpiarCanvas() { if (limpiado) return; limpiado = true; canvas.remove(); activo = false; }
+      function frame(ts) {
+        if (!inicio) inicio = ts;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (var i = 0; i < piezas.length; i++) {
+          var p = piezas[i];
+          p.x += p.vx; p.y += p.vy; p.rot += p.vrot;
+          ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.color; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore();
+        }
+        if (ts - inicio < duracionMs) requestAnimationFrame(frame); else limpiarCanvas();
+      }
+      requestAnimationFrame(frame);
+      setTimeout(limpiarCanvas, duracionMs + 500);
+      var toast = document.createElement('div');
+      var mensajes = obtenerMensajes();
+      var listaMsg = esSeptiembre ? mensajes.septiembre : mensajes.generales;
+      toast.textContent = listaMsg[Math.floor(Math.random() * listaMsg.length)];
+      toast.style.cssText = 'position:fixed;left:50%;top:18px;transform:translateX(-50%) translateY(-12px);background:var(--cobra-navy,#003c71);color:#fff;padding:12px 20px;border-radius:10px;font-weight:700;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.22);z-index:10000;max-width:min(90vw,420px);text-align:center;opacity:0;transition:opacity .35s ease,transform .35s ease;';
+      document.body.appendChild(toast);
+      requestAnimationFrame(function () { toast.style.opacity = '1'; toast.style.transform = 'translateX(-50%) translateY(0)'; });
+      setTimeout(function () { toast.style.opacity = '0'; toast.style.transform = 'translateX(-50%) translateY(-12px)'; setTimeout(function () { toast.remove(); }, 400); }, 2600);
+    }
+    logo.addEventListener('click', function () {
+      var ahora = Date.now();
+      if (ahora - lastClick > 800) clicks = 0;
+      lastClick = ahora;
+      clicks++;
+      if (clicks >= 7) { clicks = 0; lanzarConfeti(); }
+    });
+  })();
+} catch (e) { /* easter egg opcional */ }
+</script>
+
+</body>
+</html>
