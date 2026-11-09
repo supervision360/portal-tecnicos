@@ -132,6 +132,21 @@
   /* ===== Portal del tecnico: ajustes propios sobre el sistema de diseno (iguales a VTR) ===== */
   main{ max-width:1100px; margin:0 auto; }
   header.top .wrap, section.hero .wrap, footer.foot .wrap{ max-width:1100px; }
+  .campana{ position:relative; }
+  #campanaBtn{ position:relative; background:none; border:1px solid var(--border); color:var(--cobra-navy); width:36px; height:36px; border-radius:50%; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; }
+  #campanaBtn:hover{ background:var(--panel-2); }
+  #campanaBtn svg{ width:18px; height:18px; }
+  #campanaNum{ position:absolute; top:-4px; right:-4px; min-width:17px; height:17px; padding:0 4px; border-radius:9px; background:#d93025; color:#fff; font-size:10.5px; font-weight:800; line-height:17px; text-align:center; }
+  #campanaPanel{ position:absolute; right:0; top:44px; width:min(340px, calc(100vw - 24px)); max-height:70vh; overflow:auto; background:#fff; border:1px solid var(--border); border-radius:12px; box-shadow:0 10px 30px rgba(0,30,60,.18); z-index:50; }
+  @media (max-width:520px){ #campanaPanel{ position:fixed; left:10px; right:10px; width:auto; } }
+  #campanaPanel .cmp-tit{ padding:12px 14px; font-size:12px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--cobra-blue); border-bottom:1px solid var(--border); }
+  #campanaPanel a{ display:flex; gap:10px; padding:11px 14px; border-bottom:1px solid var(--border); text-decoration:none; color:var(--text); font-size:13.5px; line-height:1.35; }
+  #campanaPanel a:last-child{ border-bottom:none; }
+  #campanaPanel a:hover{ background:var(--panel-2); }
+  #campanaPanel a.nuevo{ background:#eef5fd; }
+  #campanaPanel .cmp-ico{ flex:none; font-size:17px; }
+  #campanaPanel .cmp-fecha{ display:block; font-size:11.5px; color:var(--text-dim); margin-top:2px; }
+  #campanaPanel .cmp-vacio{ padding:16px 14px; font-size:13px; color:var(--text-dim); }
   .oculto{ display:none !important; }
   header.top .acciones-top{ margin-left:auto; display:flex; gap:10px; align-items:center; }
   .btn-instalar{ display:inline-flex; align-items:center; gap:7px; background:var(--amber); color:#1d1a12; border:none; border-radius:2px; padding:9px 14px; font:600 12.5px/1.2 var(--font); letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
@@ -236,6 +251,7 @@
     <div class="acciones-top">
       <img src="logo-tigo.png" alt="Tigo" id="logoTigo">
       <button class="btn-instalar oculto" id="btnInstalar" type="button" title="Instalar en el celular"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M12 7v7"/><path d="M9 11l3 3 3-3"/></svg><span>Instalar app</span></button>
+      <div class="campana oculto" id="campana"> <button id="campanaBtn" type="button" aria-label="Avisos" aria-expanded="false" title="Avisos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span id="campanaNum" hidden></span></button> <div id="campanaPanel" hidden><div class="cmp-tit">Avisos</div><div id="campanaLista"></div></div>
       <button id="logoutBtn" class="oculto" type="button">Salir</button>
     </div>
   </div>
@@ -598,6 +614,7 @@ function mostrarPerfil(t) {
   document.getElementById('loginBox').style.display = 'none';
   document.getElementById('appBox').style.display = 'block';
   document.getElementById('logoutBtn').classList.remove('oculto');
+  if (window.iniciarAvisos) window.iniciarAvisos();
 
   const nombre = titleCase(t.nombre);
   const primer = nombre.split(' ')[0] || nombre;
@@ -656,6 +673,7 @@ function volverAlIngreso() {
   document.getElementById('appBox').style.display = 'none';
   document.getElementById('loginBox').style.display = 'block';
   document.getElementById('logoutBtn').classList.add('oculto');
+  if (window.ocultarAvisos) window.ocultarAvisos();
   document.getElementById('heroEyebrow').innerHTML = HERO_INICIAL.eyebrow;
   document.getElementById('heroTitulo').innerHTML = HERO_INICIAL.titulo;
   document.getElementById('heroSub').innerHTML = HERO_INICIAL.sub;
@@ -741,6 +759,57 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
   sessionStorage.removeItem(CLAVE_DATOS);
   volverAlIngreso();
 });
+
+// ---------- Campanita de avisos (comunicados, videos nuevos, cambios) ----------
+// La lista sale de avisos.json (la arma reportes/generar_avisos.js). Cada aviso nuevo se marca con el
+// numerito rojo hasta que el tecnico abre la campanita; lo que ya vio se guarda solo en su telefono.
+(function () {
+  const CLAVE = 'portalAvisosVistos';
+  const ICONOS = { video: '🎬', comunicado: '📢', autochequeo: '📝', otro: '🔔' };
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const dmy = (iso) => String(iso || '').split('-').reverse().join('-');
+  const leerVistos = () => { try { return JSON.parse(localStorage.getItem(CLAVE)) || []; } catch (e) { return []; } };
+  const guardarVistos = (ids) => { try { localStorage.setItem(CLAVE, JSON.stringify(ids.slice(-200))); } catch (e) { /* sin almacenamiento */ } };
+  let avisos = [], nuevos = new Set();
+
+  function dibujar() {
+    const num = document.getElementById('campanaNum');
+    num.hidden = nuevos.size === 0;
+    num.textContent = nuevos.size > 9 ? '9+' : String(nuevos.size);
+    document.getElementById('campanaLista').innerHTML = avisos.length
+      ? avisos.map((a) => '<a class="' + (nuevos.has(a.id) ? 'nuevo' : '') + '" href="' + esc(a.enlace) + '" target="_blank" rel="noopener"><span class="cmp-ico">' + (ICONOS[a.tipo] || ICONOS.otro) + '</span><span>' + esc(a.titulo) + '<span class="cmp-fecha">' + dmy(a.fecha) + '</span></span></a>').join('')
+      : '<div class="cmp-vacio">No hay avisos por ahora.</div>';
+  }
+
+  function abrirCerrar(abrir) {
+    const panel = document.getElementById('campanaPanel');
+    panel.hidden = !abrir;
+    if (abrir) panel.style.top = (document.getElementById('campanaBtn').getBoundingClientRect().bottom + 8) + 'px';   // en celular el panel va fijo, a todo el ancho
+    document.getElementById('campanaBtn').setAttribute('aria-expanded', abrir);
+    if (abrir && nuevos.size) {   // al abrirla, todo queda como visto (el resaltado se ve hasta cerrarla)
+      guardarVistos(leerVistos().concat(avisos.map((a) => a.id)));
+      document.getElementById('campanaNum').hidden = true;
+    }
+    if (!abrir) { nuevos = new Set(); dibujar(); }
+  }
+
+  window.iniciarAvisos = async function () {
+    try {
+      const r = await fetch('avisos.json', { cache: 'no-store' });
+      if (!r.ok) return;
+      const j = await r.json();
+      avisos = (j.avisos || []).slice(0, 10);
+      const vistos = new Set(leerVistos());
+      nuevos = new Set(avisos.filter((a) => !vistos.has(a.id)).map((a) => a.id));
+      dibujar();
+      document.getElementById('campana').classList.remove('oculto');
+    } catch (e) { /* sin avisos: la campanita no se muestra */ }
+  };
+  window.ocultarAvisos = function () { document.getElementById('campana').classList.add('oculto'); abrirCerrar(false); };
+
+  document.getElementById('campanaBtn').addEventListener('click', (e) => { e.stopPropagation(); abrirCerrar(document.getElementById('campanaPanel').hidden); });
+  document.addEventListener('click', (e) => { if (!document.getElementById('campana').contains(e.target)) abrirCerrar(false); });
+})();
 
 // Al recargar la pestaña se vuelve a mostrar el mismo tecnico, sin pedirlo de nuevo.
 const keyGuardada = sessionStorage.getItem('portalTecnicoKey');
