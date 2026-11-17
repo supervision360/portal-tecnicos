@@ -737,7 +737,8 @@ async function intentarLogin() {
   try {
     const r = await obtenerTecnico(key);
     if (!r || !r.ok) {
-      avisar(r && r.motivo === 'espera' ? 'Demasiados intentos. Espera un minuto.' : 'ID no encontrado. Son los últimos 6 números de tu RUT.');
+      avisar(r && r.motivo === 'cerrado' ? 'La operación Tigo terminó. Gracias por tu trabajo. Este portal ya no muestra indicadores.'
+        : r && r.motivo === 'espera' ? 'Demasiados intentos. Espera un minuto.' : 'ID no encontrado. Son los últimos 6 números de tu RUT.');
       return;
     }
     DATA.tecnicos = DATA.tecnicos || {};
