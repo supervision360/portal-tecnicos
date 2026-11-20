@@ -149,6 +149,10 @@
   #campanaPanel .cmp-vacio{ padding:16px 14px; font-size:13px; color:var(--text-dim); }
   .oculto{ display:none !important; }
   header.top .acciones-top{ margin-left:auto; display:flex; gap:10px; align-items:center; }
+  .acciones-tec{ display:flex; margin:16px 0 14px; }
+  .acciones-tec .btn-reiteradas{ display:inline-flex; align-items:center; gap:9px; text-decoration:none; }
+  .acciones-tec .btn-reiteradas svg{ width:19px; height:19px; flex:none; }
+  @media (max-width:560px){ .acciones-tec .btn-reiteradas{ width:100%; justify-content:center; } }
   .btn-instalar{ display:inline-flex; align-items:center; gap:7px; background:var(--amber); color:#1d1a12; border:none; border-radius:2px; padding:9px 14px; font:600 12.5px/1.2 var(--font); letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
   .btn-instalar:hover{ background:#ffb61a; }
   .btn-instalar svg{ width:15px; height:15px; }
@@ -297,6 +301,13 @@
   <div id="appBox">
     <div id="resumenGeneral"></div>
 
+    <div class="acciones-tec">
+      <a class="btn-reiteradas" href="https://calidad-cobra.github.io/academia-tecnica/" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/><path d="M22 9v6"/></svg>
+        Academia T&eacute;cnica
+      </a>
+    </div>
+
     <h2 class="titulo-seccion">Tu <b>mes</b></h2>
     <div class="resumen-row" id="resumenCards"></div>
 
@@ -322,6 +333,7 @@
     <div class="detalle-grid">
       <div class="report-card panel" id="seccionRep"></div>
       <div class="report-card panel" id="seccionInf"></div>
+      <div class="report-card panel" id="seccionRepMes"></div>
       <div class="report-card panel" id="seccionProd"></div>
       <div class="report-card panel" id="seccionNps"></div>
       <div class="report-card panel" id="seccionComunicados">
@@ -479,6 +491,7 @@ function bloqueNps(nps) {
 const INFO_METRICAS = {
   rep: { titulo: 'Repetido Reparado', texto: 'Reparaciones tuyas que vuelven a fallar antes de 30 días. Meta: no más de ' + pct(DATA.metaReincidencias) + '. Más bajo es mejor.' },
   inf: { titulo: 'Averías de Infancia', texto: 'Instalaciones tuyas que fallan poco después de instaladas. Meta: no más de ' + pct(DATA.metaInfancia) + '. Más bajo es mejor.' },
+  repm: { titulo: 'Repetido del mes', texto: 'Visitas tuyas (instalaciones y reparaciones) que volvieron a fallar dentro del mismo mes: el cliente reclamó de nuevo y se creó otra reparación. Se cuenta por mes calendario, sin ventana de 30 días. Meta: no más de ' + pct(DATA.metaRepMes) + '. Más bajo es mejor.' },
   prod: { titulo: 'Productividad', texto: 'Productos que dejas listos por día trabajado. Meta: ' + DATA.metaProductividad + ' por día. Más alto es mejor.' },
   nps: { titulo: 'NPS', texto: 'Cuánto te recomiendan tus clientes en la encuesta. Meta: ' + (DATA.metaNps != null ? DATA.metaNps + '%' : '-') + '. Más alto es mejor.' },
 };
@@ -507,6 +520,7 @@ function renderResumen(t) {
   const cards = [];
   if (t.reincidencias && t.reincidencias.total) cards.push(tarjeta('Repetido', pct(t.reincidencias.tasa), 'Meta: máx. ' + pct(DATA.metaReincidencias), estadoTasa(t.reincidencias.tasa, DATA.metaReincidencias), r.rep, 'seccionRep'));
   if (t.infancia && t.infancia.total) cards.push(tarjeta('Infancia', pct(t.infancia.tasa), 'Meta: máx. ' + pct(DATA.metaInfancia), estadoTasa(t.infancia.tasa, DATA.metaInfancia), r.inf, 'seccionInf'));
+  if (t.repMes && t.repMes.total) cards.push(tarjeta('Repetido del mes', pct(t.repMes.tasa), 'Meta: máx. ' + pct(DATA.metaRepMes), estadoTasa(t.repMes.tasa, DATA.metaRepMes), null, 'seccionRepMes'));
   if (t.productividad) cards.push(tarjeta('Productividad', numero(t.productividad.prodDia, 2) + '<small>/día</small>', 'Meta: ' + DATA.metaProductividad + ' por día', estadoProd(t.productividad.prodDia, DATA.metaProductividad), r.prod, 'seccionProd'));
   if (t.nps && t.nps.nps != null && DATA.metaNps != null) cards.push(tarjeta('NPS', pct(t.nps.nps), 'Meta: ' + DATA.metaNps + '%', estadoNps(t.nps.nps, DATA.metaNps), r.nps, 'seccionNps'));
   const cont = document.getElementById('resumenCards');
@@ -629,6 +643,7 @@ function mostrarPerfil(t) {
   const estados = [];
   if (t.reincidencias && t.reincidencias.total) estados.push(estadoTasa(t.reincidencias.tasa, DATA.metaReincidencias).clase);
   if (t.infancia && t.infancia.total) estados.push(estadoTasa(t.infancia.tasa, DATA.metaInfancia).clase);
+  if (t.repMes && t.repMes.total) estados.push(estadoTasa(t.repMes.tasa, DATA.metaRepMes).clase);
   if (t.productividad) estados.push(estadoProd(t.productividad.prodDia, DATA.metaProductividad).clase);
   if (t.nps && t.nps.nps != null && DATA.metaNps != null) estados.push(estadoNps(t.nps.nps, DATA.metaNps).clase);
   let claseGeneral = 'ok', mensajeGeneral = '<b>¡Vas bien este mes!</b>';
@@ -653,6 +668,11 @@ function mostrarPerfil(t) {
     icono: '🏠', titulo: 'Averías de Infancia', claveInfo: 'inf', meta: DATA.metaInfancia, datos: t.infancia,
     queHiciste: 'instalaciones', queFallo: ['falló al poco tiempo', 'fallaron al poco tiempo'],
     etiquetas: ['Tu instalación', 'Falló', 'Reparación'],
+  });
+  document.getElementById('seccionRepMes').innerHTML = bloqueTasa({
+    icono: '📅', titulo: 'Repetido del mes', claveInfo: 'repm', meta: DATA.metaRepMes, datos: t.repMes,
+    queHiciste: 'visitas del mes', queFallo: ['volvió a fallar en el mes', 'volvieron a fallar en el mes'],
+    etiquetas: ['Tu visita', 'Volvió a fallar', 'Nueva reparación'],
   });
   document.getElementById('seccionProd').innerHTML = bloqueProd(t.productividad);
   document.getElementById('seccionNps').innerHTML = bloqueNps(t.nps);
@@ -737,8 +757,7 @@ async function intentarLogin() {
   try {
     const r = await obtenerTecnico(key);
     if (!r || !r.ok) {
-      avisar(r && r.motivo === 'cerrado' ? 'La operación Tigo terminó. Gracias por tu trabajo. Este portal ya no muestra indicadores.'
-        : r && r.motivo === 'espera' ? 'Demasiados intentos. Espera un minuto.' : 'ID no encontrado. Son los últimos 6 números de tu RUT.');
+      avisar(r && r.motivo === 'espera' ? 'Demasiados intentos. Espera un minuto.' : 'ID no encontrado. Son los últimos 6 números de tu RUT.');
       return;
     }
     DATA.tecnicos = DATA.tecnicos || {};

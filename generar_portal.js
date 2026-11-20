@@ -177,7 +177,10 @@ function cargarNpsTecnicos() {
 // Cruce por RUT. Suma productos de Instala y de Repara por separado y cuenta
 // los dias distintos trabajados. Devuelve { mapa por RUT normalizado, periodo }.
 async function cargarProductividad() {
-  if (!fs.existsSync(carpetaBaremos)) {
+  // Fuente nueva (19-11-2026): el INF de MSA de toda COBRA (hoja BASE_MES_ PAIS), el mismo que usa la pagina Produccion del Portal Supervisor.
+  // Asi los tecnicos del norte tambien tienen productividad. Si no esta, se usa el INF de Punta Arenas de baremosTigo como antes.
+  const DIR_MSA = path.join(process.env.USERPROFILE || 'C:/Users/jvodn', 'OneDrive - COBRA CHILE SERVICIOS S.A', 'Archivos de Francisco Flores Villegas - JVK');
+  if (!fs.existsSync(carpetaBaremos) && !fs.existsSync(DIR_MSA)) {
     console.log('AVISO: no existe la carpeta baremosTigo -- el portal se genera sin productividad.');
     return null;
   }
@@ -186,19 +189,22 @@ async function cargarProductividad() {
     const m = f.match(/(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(\d{4})/i);
     return m ? Number(m[2]) * 100 + MESES_INF.indexOf(m[1].toLowerCase()) + 1 : 0;
   };
-  const cand = fs.readdirSync(carpetaBaremos)
-    .filter((f) => /^INF-\d+.*\.xlsx$/i.test(f) && !f.startsWith('~$'))
-    .map((f) => ({ f, k: claveInf(f), m: fs.statSync(path.join(carpetaBaremos, f)).mtimeMs }))
+  const buscarInf = (dir, re) => (fs.existsSync(dir) ? fs.readdirSync(dir) : [])
+    .filter((f) => re.test(f) && !f.startsWith('~$'))
+    .map((f) => ({ f, dir, k: claveInf(f), m: fs.statSync(path.join(dir, f)).mtimeMs }))
     .sort((a, b) => b.k - a.k || b.m - a.m)[0];
+  const candMsa = buscarInf(DIR_MSA, /^INF-\d+.*MSA.*\.xlsx$/i);
+  const candPa = buscarInf(carpetaBaremos, /^INF-\d+.*\.xlsx$/i);
+  const cand = candMsa && (!candPa || candMsa.k >= candPa.k) ? candMsa : candPa;
   if (!cand) {
     console.log('AVISO: no se encontro ningun INF-*.xlsx en baremosTigo -- el portal se genera sin productividad.');
     return null;
   }
   try {
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.readFile(path.join(carpetaBaremos, cand.f));
-    const ws = wb.getWorksheet('BASE_MES_ PUNTA_ARENAS');
-    if (!ws) throw new Error('no se encontro la hoja "BASE_MES_ PUNTA_ARENAS"');
+    await wb.xlsx.readFile(path.join(cand.dir, cand.f));
+    const ws = cand === candMsa ? wb.worksheets.find((w) => /^BASE_MES/i.test(w.name)) : wb.getWorksheet('BASE_MES_ PUNTA_ARENAS');
+    if (!ws) throw new Error('no se encontro la hoja de base del mes en ' + cand.f);
 
     // Columnas: 1 Folio | 5 Nro Productos | 6 RUT | 10 Dia | 14 Tipo (Instala/Repara)
     const porRut = {};
@@ -608,6 +614,20 @@ async function main() {
   });
   const npsData = cargarNpsTecnicos();
   asignarNps(personas, npsData);
+  // Repetido del mes (indicador nuevo): visitas del mes del tecnico y las que volvieron a fallar dentro del mismo mes. Sin datos del cliente.
+  let repMes = {};
+  try {
+    const cfgZonas = JSON.parse(fs.readFileSync(path.join(DIR_SUPERVISOR, 'agencias_norte.json'), 'utf8'));
+    const rm = require(path.join(DIR_SUPERVISOR, 'lib', 'repetido_mes.js')).repetidoMes(cfgZonas, new Date(), 4);
+    if (rm) repMes = rm.porRut;
+  } catch (e) { console.log('Repetido del mes: sin datos (' + e.message + ')'); }
+  // Tecnico Cobra con visitas este mes que aun no esta en los informes de Repetido/Infancia (por ejemplo, uno recien contratado): tambien recibe su ID.
+  const nuevos = Object.entries(repMes).filter(([rut]) => !personas.some((p) => p.rut === rut))
+    .map(([rut, x]) => ({ rut, nombre: x.nombre, agencia: x.agencia, zona: x.zona, reincidencias: null, infancia: null, productividad: prodMapa[rut] || null, nuevoPorVisitas: true }));
+  if (nuevos.length) { asignarNps(nuevos, npsData); personas.push(...nuevos); console.log('Tecnicos con acceso por visitas (sin reclamos aun): ' + nuevos.length); }
+  personas.forEach((p) => { const x = repMes[p.rut]; if (x && x.zona) p.zona = x.zona; });
+  personas.forEach((p) => { const x = repMes[p.rut]; p.repMes = x ? { total: x.total, reincidencias: x.reincidencias, tasa: x.tasa, diasPromedio: x.diasPromedio, causaFrecuente: x.causaFrecuente, causaFrecuenteCasos: x.causaFrecuenteCasos, casos: x.casos } : null; });
+  console.log('Repetido del mes: ' + personas.filter((p) => p.repMes).length + ' tecnicos con visitas este mes');
 
   // Desvinculados: no entran al portal (su trabajo pasado sigue contando en los promedios).
   const vigentes = personas.filter((p) => !DESVINCULADOS.includes(normalizarTexto(p.nombre)));
@@ -641,7 +661,13 @@ async function main() {
   const promRep = reincidencias.promedioEquipo != null ? +(reincidencias.promedioEquipo * 100).toFixed(1) : null;
   const promInf = infancia.promedioEquipo != null ? +(infancia.promedioEquipo * 100).toFixed(1) : null;
 
-  const supervisorDe = await cargarSupervisores();
+  const supervisorDe0 = await cargarSupervisores();
+  // Si el tecnico no esta en la planilla de certificacion (por ejemplo, uno nuevo), se usa el supervisor de su agencia (agencias_norte.json).
+  let supAgencia = {};
+  try { supAgencia = JSON.parse(fs.readFileSync(path.join(DIR_SUPERVISOR, 'agencias_norte.json'), 'utf8')).supervisores || {}; } catch (e) { /* sin config */ }
+  const norm0 = (x) => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();
+  const supervisorPorAg = (ag) => { const k = Object.keys(supAgencia).find((a) => norm0(a) === norm0(ag)); return k ? supAgencia[k] : ''; };
+  const supervisorDe = (nombre, agencia) => supervisorDe0(nombre) || supervisorPorAg(agencia);
   agregarRanking(habilitados);
 
   const tecnicos = {};
@@ -659,7 +685,7 @@ async function main() {
     };
     // IMPORTANTE: el RUT y la clave antigua de 4 digitos nunca salen de este script.
     const { rut, id, clave, ...publicable } = p;
-    tecnicos[p.id] = { ...publicable, supervisor: supervisorDe(p.nombre) };
+    tecnicos[p.id] = { ...publicable, supervisor: supervisorDe(p.nombre, p.agencia) };
   }
   if (!Object.keys(tecnicos).length) throw new Error('no quedo ningun tecnico habilitado; no se genera el portal');
 
@@ -671,6 +697,7 @@ async function main() {
     archivos: meses.slice().reverse().map((s) => ({ slug: s, label: nombreMes(s) })),
     metaReincidencias: +(META_REINCIDENCIA * 100).toFixed(0),
     metaInfancia: +(META_INFANCIA * 100).toFixed(1),
+    metaRepMes: +(META_REINCIDENCIA * 100).toFixed(0),
     promedioEquipoReincidencias: promRep,
     promedioEquipoInfancia: promInf,
     metaNps: npsData ? npsData.meta : null,
@@ -725,27 +752,90 @@ async function main() {
 
   // El Excel es solo de apoyo: si esta abierto no se puede reescribir, y eso no debe frenar el portal.
   try {
-    await generarExcelCredenciales(tecnicos, path.join(SALIDA, 'Credenciales_Tecnicos_NO_SUBIR.xlsx'));
+    await generarExcelCredenciales(tecnicos, path.join(SALIDA, 'Credenciales_Tecnicos_NO_SUBIR.xlsx'), DATA);
   } catch (err) {
     console.log('AVISO: no se actualizo el Excel de accesos (' + err.code + '; ¿esta abierto?). El portal se genero igual.');
+  }
+  // Respaldo acumulado de accesos (nombre + ID de cada tecnico, nunca se borra a nadie): MaestrosRespaldo_Accesos_Tecnicos_NO_SUBIR.xlsx.
+  try {
+    await respaldarAccesos(tecnicos, MODO === 'prueba' ? path.join(SALIDA, 'Respaldo_Accesos_Tecnicos_NO_SUBIR.xlsx') : 'C:/Bases_Tigo/Maestros/Respaldo_Accesos_Tecnicos_NO_SUBIR.xlsx');
+  } catch (err) {
+    console.log('AVISO: no se actualizo el respaldo de accesos (' + (err.code || err.message) + '; ¿esta abierto?). El portal se genero igual.');
   }
 }
 
 // Excel SOLO local (no se sube a GitHub) con el ID de cada tecnico, para repartirlo.
-async function generarExcelCredenciales(tecnicos, outPath) {
+// Respaldo acumulado: cada tecnico que alguna vez tuvo acceso queda con su nombre e ID, con la fecha de alta.
+// Si un tecnico nuevo aparece en la base, se agrega solo (fila resaltada durante 14 dias). Los que ya no estan quedan como "No vigente".
+async function respaldarAccesos(tecnicos, outPath) {
+  const hoy = new Date(); const p2 = (n) => String(n).padStart(2, '0');
+  const hoyTxt = p2(hoy.getDate()) + '-' + p2(hoy.getMonth() + 1) + '-' + hoy.getFullYear();
+  const previos = new Map();
+  if (fs.existsSync(outPath)) {
+    const wb0 = new ExcelJS.Workbook(); await wb0.xlsx.readFile(outPath);
+    const ws0 = wb0.getWorksheet('Accesos');
+    if (ws0) ws0.eachRow((row, n) => { if (n === 1) return; const id = String(row.getCell(5).value || '').trim(); if (id) previos.set(id, { nombre: row.getCell(1).value, zona: row.getCell(2).value, agencia: row.getCell(3).value, supervisor: row.getCell(4).value, alta: String(row.getCell(6).value || ''), entregado: String(row.getCell(8).value || '') }); });
+  }
+  const filas = new Map(); const nuevos = [];
+  previos.forEach((x, id) => filas.set(id, { ...x, vigente: false }));
+  Object.entries(tecnicos).forEach(([id, t]) => {
+    const ant = previos.get(id);
+    if (!ant) nuevos.push(t.nombre);
+    filas.set(id, { nombre: t.nombre, zona: t.zona || (ant && ant.zona) || '', agencia: t.agencia, supervisor: t.supervisor || (ant && ant.supervisor) || '', alta: ant ? ant.alta : (previos.size ? hoyTxt : hoyTxt + ' (inicial)'), entregado: ant ? ant.entregado : '', vigente: true });
+  });
+  const wb = new ExcelJS.Workbook(); wb.creator = 'Portal de Tecnicos';
+  const ws = wb.addWorksheet('Accesos', { views: [{ state: 'frozen', ySplit: 1 }] });
+  ws.columns = [{ header: 'Nombre completo', width: 36 }, { header: 'Zona', width: 10 }, { header: 'Agencia', width: 16 }, { header: 'Supervisor', width: 30 }, { header: 'ID (clave de acceso)', width: 20 }, { header: 'Alta', width: 22 }, { header: 'Estado', width: 12 }, { header: 'Entregado (marca SI cuando se lo compartas)', width: 24 }];
+  const lista = [...filas.entries()].sort((a, b) => String(a[1].nombre).localeCompare(String(b[1].nombre)));
+  const hace14 = new Date(hoy.getTime() - 14 * 86400000);
+  lista.forEach(([id, x]) => {
+    const row = ws.addRow([x.nombre, x.zona, x.agencia, x.supervisor, id, x.alta, x.vigente ? 'Vigente' : 'No vigente', x.entregado || '']);
+    row.eachCell((c) => { c.font = { name: 'Arial', size: 10.5 }; });
+    row.getCell(5).font = { name: 'Arial', size: 11, bold: true }; row.getCell(5).numFmt = '@';
+    const m = /^(d{2})-(d{2})-(d{4})$/.exec(x.alta);
+    if (m && new Date(+m[3], +m[2] - 1, +m[1]) >= hace14) row.eachCell((c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDF1D8' } }; });
+    if (!x.vigente) row.eachCell((c) => { c.font = { name: 'Arial', size: 10.5, color: { argb: 'FF8A93A3' } }; });
+  });
+  ws.getRow(1).eachCell((c) => { c.font = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF003575' } }; c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; });
+  ws.getRow(1).height = 26; ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: lista.length + 1, column: 8 } };
+  const nt = wb.addWorksheet('Notas'); nt.columns = [{ width: 100 }];
+  ['RESPALDO DE ACCESOS DEL PORTAL DE TECNICOS', '', 'Solo uso local: no se sube a GitHub ni se publica.', 'Cada tecnico entra con su ID (ultimos 6 caracteres de su RUT, con digito verificador y sin guion; si termina en K, se usa 0).',
+    'Este respaldo es acumulado: cuando aparece un tecnico nuevo en la base se agrega solo, con su fecha de alta (fila resaltada 14 dias). Nadie se borra: los que ya no estan figuran como No vigente.',
+    'La columna Entregado es para ti: escribe SI cuando le compartas el ID a ese tecnico; el dato se conserva en cada actualizacion.',
+    'Se actualiza cada dia con la publicacion de las 11:00.'].forEach((t, i) => { const r = nt.addRow([t]); r.getCell(1).font = i === 0 ? { name: 'Arial', bold: true, size: 12 } : { name: 'Arial', size: 10 }; });
+  await wb.xlsx.writeFile(outPath);
+  console.log('Respaldo de accesos: ' + lista.length + ' tecnicos en ' + outPath + (previos.size ? (nuevos.length ? ' | NUEVOS: ' + nuevos.join(', ') : ' | sin nuevos') : ' | creado hoy'));
+}
+
+async function generarExcelCredenciales(tecnicos, outPath, DATA) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Portal de Tecnicos';
   wb.created = new Date();
   const ws = wb.addWorksheet('Accesos', { views: [{ state: 'frozen', ySplit: 1 }] });
   ws.columns = [
     { header: 'Nombre completo', key: 'nombre', width: 34 },
+    { header: 'Zona', key: 'zona', width: 10 },
     { header: 'Agencia', key: 'agencia', width: 16 },
     { header: 'Supervisor', key: 'supervisor', width: 30 },
     { header: 'ID (dato de acceso)', key: 'id', width: 20 },
+    { header: 'Alta en el portal', key: 'alta', width: 20 },
+    { header: 'Visitas del mes', key: 'visitas', width: 11 },
+    { header: 'Repetido del mes %', key: 'repm', width: 12 },
+    { header: 'Repetido %', key: 'rep', width: 11 },
+    { header: 'Infancia %', key: 'inf', width: 11 },
+    { header: 'Productos por día', key: 'prod', width: 11 },
+    { header: 'NPS', key: 'nps', width: 8 },
   ];
+  // Alta: tecnicos que aparecieron despues de armar el registro de tecnicos (portal-supervisor, lib/tecnicos_nuevos.js).
+  let reg = null;
+  try { reg = JSON.parse(fs.readFileSync('C:/Bases_Tigo/conexion_sql/tecnicos_conocidos.json', 'utf8')); } catch (e) { /* sin registro */ }
+  const claveNom = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/s+/g, ' ').trim();
+  const alta = (nombre) => { const d = reg && reg.tecnicos && reg.tecnicos[claveNom(nombre)]; return d && d > reg.creado ? 'NUEVO · ' + d.split('-').reverse().join('-') : ''; };
   Object.entries(tecnicos)
     .sort((a, b) => a[1].nombre.localeCompare(b[1].nombre))
-    .forEach(([id, t]) => ws.addRow({ nombre: t.nombre, agencia: t.agencia, supervisor: t.supervisor || '', id }));
+    .forEach(([id, t]) => ws.addRow({ nombre: t.nombre, zona: t.zona || '', agencia: t.agencia, supervisor: t.supervisor || '', id, alta: alta(t.nombre),
+      visitas: t.repMes ? t.repMes.total : '', repm: t.repMes ? t.repMes.tasa : '', rep: t.reincidencias && t.reincidencias.total ? t.reincidencias.tasa : '', inf: t.infancia && t.infancia.total ? t.infancia.tasa : '',
+      prod: t.productividad ? +Number(t.productividad.prodDia).toFixed(2) : '', nps: t.nps && t.nps.nps != null ? +Number(t.nps.nps).toFixed(1) : '' }));
   const headerRow = ws.getRow(1);
   headerRow.eachCell((cell) => {
     cell.font = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' } };
@@ -759,7 +849,7 @@ async function generarExcelCredenciales(tecnicos, outPath) {
     row.getCell('id').font = { name: 'Arial', size: 11, bold: true };
     row.getCell('id').numFmt = '@';
   });
-  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: Object.keys(tecnicos).length + 1, column: 4 } };
+  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: Object.keys(tecnicos).length + 1, column: 12 } };
   const notas = wb.addWorksheet('Notas');
   notas.columns = [{ width: 100 }];
   [
