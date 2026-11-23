@@ -576,7 +576,7 @@ function avisoVisible(texto) {
 }
 
 async function main() {
-  const csvReincidencias = encontrarCsv(/^p23-averias-reiteradas.*COBRA.*\.csv$/i);
+  const csvReincidencias = encontrarCsv(/^p75-Averias-Primer-reitero.*COBRA.*\.csv$/i);
   const csvInfancia = encontrarCsv(/^p22-Averias-infancia.*COBRA.*\.csv$/i);
   console.log('Modo:', MODO);
   console.log('CSV Repetido Reparado:', csvReincidencias);
